@@ -1,71 +1,64 @@
 #include <stdio.h>
-#include <stdlib.h> // For malloc and free
+#include <string.h>
+#include <stdlib.h>
+
+#define SIZE 31
 
 // RecordType
-struct RecordType {
+struct RecordType
+{
     int id;
     char name;
     int order;
 };
 
-// Linked list node
-struct ListNode {
-    struct RecordType data;
-    struct ListNode* next;
+// Fill out this structure
+struct HashType
+{
+    struct RecordType record;
+    char status;
 };
 
-// HashType - array of linked lists
-#define HASH_SIZE 10
-
-struct HashType {
-    struct ListNode* hashArray[HASH_SIZE];
+struct LinkedList
+{
+    struct HashType hash;
+    struct LinkedList *next;
 };
 
 // Compute the hash function
-int hash(int x) {
-    return x % HASH_SIZE;
+int hash(int x)
+{
+    return x % (SIZE / 2);
 }
 
-// Insert a record into the hash table
-void insertRecordIntoHash(struct HashType* pHashTable, struct RecordType record) {
-    int index = hash(record.id);
-    struct ListNode* newNode = (struct ListNode*)malloc(sizeof(struct ListNode));
-    if (newNode == NULL) {
-        printf("Cannot allocate memory\n");
-        exit(-1);
-    }
-
-    newNode->data = record;
-    newNode->next = pHashTable->hashArray[index];
-    pHashTable->hashArray[index] = newNode;
-}
-
-// Parses input file to an integer array
-int parseData(char* inputFileName, struct HashType* pHashTable) {
-    FILE* inFile = fopen(inputFileName, "r");
+// parses input file to an integer array
+int parseData(char *inputFileName, struct RecordType **ppData)
+{
+    FILE *inFile = fopen(inputFileName, "r");
     int dataSz = 0;
     int i, n;
     char c;
-    struct RecordType* pRecord;
+    struct RecordType *pRecord;
+    *ppData = NULL;
 
-    if (inFile) {
+    if (inFile)
+    {
         fscanf(inFile, "%d\n", &dataSz);
-
-        for (i = 0; i < dataSz; ++i) {
-            pRecord = (struct RecordType*)malloc(sizeof(struct RecordType));
-            if (pRecord == NULL) {
-                printf("Cannot allocate memory\n");
-                exit(-1);
-            }
-
+        *ppData = (struct RecordType *)malloc(sizeof(struct RecordType) * dataSz);
+        if (*ppData == NULL)
+        {
+            printf("Cannot allocate memory\n");
+            exit(-1);
+        }
+        for (i = 0; i < dataSz; ++i)
+        {
+            pRecord = *ppData + i;
             fscanf(inFile, "%d ", &n);
             pRecord->id = n;
             fscanf(inFile, "%c ", &c);
             pRecord->name = c;
             fscanf(inFile, "%d ", &n);
             pRecord->order = n;
-
-            insertRecordIntoHash(pHashTable, *pRecord);
         }
 
         fclose(inFile);
@@ -74,61 +67,88 @@ int parseData(char* inputFileName, struct HashType* pHashTable) {
     return dataSz;
 }
 
-// Prints the records
-void printRecords(struct RecordType pData[], int dataSz) {
+// prints the records
+void printRecords(struct RecordType pData[], int dataSz)
+{
     int i;
     printf("\nRecords:\n");
-    for (i = 0; i < dataSz; ++i) {
-        printf("\t%d %c %d\n", pData[i].id, pData[i].name, pData[i].order);
+    for (i = 0; i < dataSz; ++i)
+    {
+        printf("\t %d %c %d\n", pData[i].id, pData[i].name, pData[i].order);
     }
-    printf("\n\n");
+    printf("\n");
 }
 
-// Display records in the hash structure
-void displayRecordsInHash(struct HashType* pHashTable, int hashSz) {
+void displayRecordsInHash(struct LinkedList *pHashArray, int hashSz)
+{
     int i;
-
-    for (i = 0; i < hashSz; ++i) {
-        struct ListNode* currentNode = pHashTable->hashArray[i];
-        if (currentNode != NULL) {
-            printf("Index %d ->", i);
-            while (currentNode != NULL) {
-                printf(" %d %c %d ->", currentNode->data.id, currentNode->data.name, currentNode->data.order);
-                currentNode = currentNode->next;
+    printf("Records from Hash Table:\n");
+    for (i = 0; i < hashSz; i++)
+    {
+        struct LinkedList *temp = &pHashArray[i];
+        if (temp->hash.status == 'f')
+        {
+            printf("Index %d:\n", i);
+            while (temp != NULL)
+            {
+                printf("\tID: %d \tName: %c \tOrder: %d\n", temp->hash.record.id, temp->hash.record.name, temp->hash.record.order);
+                temp = temp->next;
             }
-            printf("\n");
         }
     }
 }
 
-// Free memory used by the linked list
-void freeLinkedList(struct ListNode* head) {
-    struct ListNode* currentNode = head;
-    while (currentNode != NULL) {
-        struct ListNode* temp = currentNode;
-        currentNode = currentNode->next;
-        free(temp);
-    }
-}
+int main(void)
+{
+    struct RecordType *pRecords;
+    int recordSz = 0;
 
-// Free memory used by the hash table
-void freeHashTable(struct HashType* pHashTable) {
-    for (int i = 0; i < HASH_SIZE; i++) {
-        freeLinkedList(pHashTable->hashArray[i]);
-    }
-}
+    recordSz = parseData("input.txt", &pRecords);
+    printRecords(pRecords, recordSz);
 
-int main(void) {
-    struct HashType hashTable;
-    for (int i = 0; i < HASH_SIZE; i++) {
-        hashTable.hashArray[i] = NULL;
+    struct LinkedList *arr = (struct LinkedList *)malloc(sizeof(struct LinkedList) * SIZE / 2);
+    for (int i = 0; i < SIZE / 2; i++)
+    {
+        arr[i].hash.status = 'e'; // Initialize the status as 'e' (empty)
+        arr[i].hash.record.id = 0;
+        arr[i].next = NULL;
     }
 
-    int recordSz = parseData("input.txt", &hashTable);
-    displayRecordsInHash(&hashTable, HASH_SIZE);
-    
-    // Cleanup: Free allocated memory
-    freeHashTable(&hashTable);
+    int index;
+    for (int i = 0; i < recordSz; i++)
+    {
+        index = hash(pRecords[i].id);
+        if (arr[index].hash.status != 'f')
+        {
+            arr[index].hash.record = pRecords[i];
+            arr[index].hash.status = 'f';
+            arr[index].next = NULL;
+        }
+        else
+        {
+            struct LinkedList *newNode = (struct LinkedList *)malloc(sizeof(struct LinkedList));
+            newNode->hash.record = pRecords[i];
+            newNode->hash.status = 'f';
+            newNode->next = arr[index].next;
+            arr[index].next = newNode;
+        }
+    }
 
+    displayRecordsInHash(arr, SIZE / 2);
+
+    // Free dynamically allocated memory
+    for (int i = 0; i < SIZE / 2; i++)
+    {
+        struct LinkedList *temp = arr[i].next;
+        while (temp != NULL)
+        {
+            struct LinkedList *nextNode = temp->next;
+            free(temp);
+            temp = nextNode;
+        }
+    }
+
+    free(arr);
+    free(pRecords);
     return 0;
 }
